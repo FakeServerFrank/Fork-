@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fork</title>
+<style>
+:root{--paper:#E9EEF2;--ink:#1B2A33;--steel:#5B7C8D;--line:#C9D4DB;--accent:#3B3FD8;--card:#fff}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font-family:Georgia,"Times New Roman",serif;background:var(--paper);color:var(--ink);
+  padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+#app{height:100%;display:flex;flex-direction:column}
+.view{display:none;flex:1;min-height:0;flex-direction:column}
+.view.on{display:flex}
+button{font:inherit;color:inherit}
+button:focus-visible,textarea:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--steel);outline-offset:2px}
+
+/* Barra superior (todas menos inicio) */
+#bar{display:none;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+#bar.on{display:flex}
+#bar h2{font-size:20px;flex:1}
+.ghost{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.ghost.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* Inicio */
+#v-home{padding:20px 18px 18px;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:8px;color:var(--steel);font-size:17px}
+.brand svg{width:24px;height:24px}
+.clock{margin-top:34px;font-size:76px;line-height:1;letter-spacing:-2px}
+.date{margin-top:8px;font-size:18px;color:var(--steel)}
+.hello{margin-top:26px;font-size:24px;line-height:1.25}
+.say{margin-top:18px;display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:16px;border:0;background:var(--accent);color:#fff;font-size:18px;text-align:left}
+.say svg{width:26px;height:26px;flex:none}
+.grid{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:12px;min-height:104px}
+.tile svg{width:26px;height:26px;color:var(--accent)}
+.tile b{font-weight:normal;font-size:18px}
+.tile small{color:var(--steel);font-size:14px;margin-top:-8px}
+/* Chat */
+#chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:85%;padding:10px 14px;border-radius:14px;line-height:1.45;font-size:16px;white-space:pre-wrap;word-wrap:break-word}
+.me{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.ai{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.ai a{display:inline-block;margin-top:8px;padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none}
+form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);align-items:flex-end}
+textarea,.field{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px;background:#fff;color:var(--ink)}
+.btn{width:46px;height:46px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--accent);color:#fff;flex:none}
+.btn svg{width:22px;height:22px}
+#mic{background:#fff;color:var(--accent);border:1px solid var(--line)}
+#mic.on{background:var(--accent);color:#fff;animation:pulse 1.1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 10px rgba(59,63,216,.18)}}
+@media (prefers-reduced-motion:reduce){#mic.on{animation:none}}
+
+/* Paneles simples */
+.panel{padding:16px;overflow-y:auto;flex:1}
+.row{display:flex;gap:8px;margin-bottom:14px}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;line-height:1.4}
+.item span{flex:1;word-wrap:break-word;min-width:0}
+.item button{background:none;border:0;color:var(--steel);font-size:14px;padding:4px 6px}
+.hint{color:var(--steel);text-align:center;margin-top:24px;line-height:1.5}
+.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.presets button{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 4px;font-size:17px}
+.count{font-size:20px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.apps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.apps a{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink);text-decoration:none;font-size:17px}
+h3{font-size:16px;font-weight:normal;color:var(--steel);margin:6px 0 10px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="bar">
+  <button class="ghost" id="back" type="button">Inicio</button>
+  <h2 id="title"></h2>
+  <button class="ghost" id="voz" type="button">Voz</button>
+  <button class="ghost" id="clear" type="button" hidden>Borrar</button>
+</div>
+
+<!-- INICIO -->
+<section class="view on" id="v-home">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#3B3FD8" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 22V10M5 3v5a7 7 0 0 0 14 0V3M12 3v7"/></svg>
+    Fork
+  </div>
+  <div class="clock" id="clock">--:--</div>
+  <div class="date" id="date"></div>
+  <div class="hello" id="hello"></div>
+
+  <button class="say" id="say" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+    Háblale a Fork
+  </button>
+
+  <div class="grid">
+    <button class="tile" data-go="chat" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6A8 8 0 1 1 21 12z"/></svg>
+      <b>Comandos</b><small>Escribe o dicta</small>
+    </button>
+    <button class="tile" data-go="notes" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5"/></svg>
+      <b>Notas</b><small id="notesCount"></small>
+    </button>
+    <button class="tile" data-go="timer" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg>
+      <b>Temporizador</b><small id="timerCount"></small>
+    </button>
+    <button class="tile" data-go="apps" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <b>Apps</b><small>Abrir rápido</small>
+    </button>
+  </div>
+</section>
+<!-- COMANDOS -->
+<section class="view" id="v-chat">
+  <div id="chat" aria-live="polite"></div>
+  <form id="form">
+    <button class="btn" id="mic" type="button" aria-label="Hablar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+    </button>
+    <textarea id="input" rows="1" placeholder="Dile algo a Fork"></textarea>
+    <button class="btn" type="submit" aria-label="Enviar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+    </button>
+  </form>
+</section>
+
+<!-- NOTAS -->
+<section class="view" id="v-notes">
+  <div class="panel">
+    <div class="row">
+      <input class="field" id="noteIn" type="text" placeholder="Escribe una nota">
+      <button class="btn" id="noteAdd" type="button" aria-label="Guardar nota">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="list" id="noteList"></div>
+  </div>
+</section>
+
+<!-- TEMPORIZADOR -->
+<section class="view" id="v-timer">
+  <div class="panel">
+    <h3>Iniciar uno nuevo</h3>
+    <div class="presets" id="presets"></div>
+    <h3>En marcha</h3>
+    <div class="list" id="timerList"></div>
+    <p class="hint">Deja la pantalla de Fork abierta para que suene.</p>
+  </div>
+</section>
+
+<!-- APPS -->
+<section class="view" id="v-apps">
+  <div class="panel"><div class="apps" id="appsGrid"></div></div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  function st(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+  function norm(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[¿?¡!.,]/g,'').trim()}
+  var MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+  /* ---------- Navegación ---------- */
+  var TITLES={chat:'Comandos',notes:'Notas',timer:'Temporizador',apps:'Apps'};
+  var current='home';
+  function show(name){
+    current=name;
+    ['home','chat','notes','timer','apps'].forEach(function(v){$('v-'+v).classList.toggle('on',v===name)});
+    $('bar').classList.toggle('on',name!=='home');
+    $('title').textContent=TITLES[name]||'';
+    $('clear').hidden=name!=='chat';
+    if(name==='notes')renderNotes();
+    if(name==='timer')renderTimers();
+    if(name==='home')refreshHome();
+    if(name==='chat')setTimeout(function(){$('chat').scrollTop=$('chat').scrollHeight},0);
+  }
+  $('back').addEventListener('click',function(){show('home')});
+  document.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.go)})});
+
+  /* ---------- Inicio ---------- */
+  function refreshHome(){
+    var n=new Date(),h=n.getHours();
+    $('clock').textContent=n.toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit',hour12:false});
+    $('date').textContent=DIAS[n.getDay()]+' '+n.getDate()+' de '+MESES[n.getMonth()];
+    $('hello').textContent=h<6?'Es de madrugada. ¿Qué necesitas?':h<12?'Buenos días. ¿Qué hacemos hoy?':h<19?'Buenas tardes. ¿En qué te ayudo?':'Buenas noches. ¿Qué necesitas?';
+    var c=notes().length,t=timers.length;
+    $('notesCount').textContent=c?c+(c>1?' guardadas':' guardada'):'Vacío';
+    $('timerCount').textContent=t?t+(t>1?' activos':' activo'):'Ninguno';
+  }
+  setInterval(function(){if(current==='home')refreshHome()},15000);
+  /* ---------- Voz ---------- */
+  var speakOn=st('fork_voz')==='1';
+  $('voz').classList.toggle('on',speakOn);
+  $('voz').addEventListener('click',function(){
+    speakOn=!speakOn;st('fork_voz',speakOn?'1':'0');$('voz').classList.toggle('on',speakOn);
+    if(!speakOn&&window.speechSynthesis)speechSynthesis.cancel();
+  });
+  function speak(t){
+    if(speakOn&&window.ForkNative){ForkNative.speak(t);return}
+    if(!speakOn||!window.speechSynthesis)return;
+    speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t);u.lang='es-MX';speechSynthesis.speak(u);
+  }
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,on=false;
+  function listen(){
+    if(window.ForkNative){if(on){ForkNative.stop()}else{show('chat');ForkNative.listen()}return}
+    if(!SR){show('chat');return reply('Este navegador no permite dictado por voz. Ábrelo en Chrome para usar el micrófono.')}
+    if(on){rec.stop();return}
+    rec=new SR();rec.lang='es-MX';rec.interimResults=false;
+    rec.onstart=function(){on=true;$('mic').classList.add('on')};
+    rec.onend=function(){on=false;$('mic').classList.remove('on')};
+    rec.onerror=function(e){show('chat');reply('No pude escuchar ('+e.error+'). Revisa el permiso del micrófono.')};
+    rec.onresult=function(e){show('chat');run(e.results[0][0].transcript)};
+    rec.start();
+  }
+  $('mic').addEventListener('click',listen);
+  $('say').addEventListener('click',listen);
+
+  /* ---------- Chat de comandos ---------- */
+  var chat=$('chat'),input=$('input'),form=$('form');
+  function bubble(cls,text,link){
+    var d=document.createElement('div');d.className='msg '+cls;d.textContent=text;
+    if(link){var a=document.createElement('a');a.href=link.url;a.target='_blank';a.rel='noopener';a.textContent=link.label||'Abrir';d.appendChild(a)}
+    chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;
+  }
+  function reply(text,link){
+    bubble('ai',text,link);speak(text);
+    if(link){if(window.ForkNative){ForkNative.open(link.url)}else{try{window.open(link.url,'_blank')}catch(e){}}}
+  }
+  /* Notas */
+  function notes(){try{return JSON.parse(st('fork_notes')||'[]')}catch(e){return[]}}
+  function saveNotes(n){st('fork_notes',JSON.stringify(n))}
+  function renderNotes(){
+    var l=$('noteList'),ns=notes();l.innerHTML='';
+    if(!ns.length){var p=document.createElement('p');p.className='hint';p.textContent='Todavía no tienes notas. Escribe una arriba.';l.appendChild(p);return}
+    ns.forEach(function(txt,i){
+      var d=document.createElement('div');d.className='item';
+      var s=document.createElement('span');s.textContent=txt;
+      var b=document.createElement('button');b.type='button';b.textContent='Borrar';
+      b.addEventListener('click',function(){var a=notes();a.splice(i,1);saveNotes(a);renderNotes()});
+      d.appendChild(s);d.appendChild(b);l.appendChild(d);
+    });
+  }
+  function addNote(){var v=$('noteIn').value.trim();if(!v)return;var a=notes();a.push(v);saveNotes(a);$('noteIn').value='';renderNotes()}
+  $('noteAdd').addEventListener('click',addNote);
+  $('noteIn').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addNote()}});
+
+  /* Temporizadores */
+  var timers=[];
+  function beep(){
+    try{var C=window.AudioContext||window.webkitAudioContext,c=new C(),o=c.createOscillator(),g=c.createGain();
+      o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.2;o.start();setTimeout(function(){o.stop();c.close()},900)}catch(e){}
+    if(navigator.vibrate)navigator.vibrate([300,150,300]);
+  }
+  function fmt(s){var h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
+    return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')}
+  function addTimer(secs,label){
+    timers.push({end:Date.now()+secs*1000,label:label});
+    if(current==='timer')renderTimers();
+  }
+  function renderTimers(){
+    var l=$('timerList');l.innerHTML='';
+    if(!timers.length){var p=document.createElement('p');p.className='hint';p.style.marginTop='8px';p.textContent='No hay ninguno en marcha.';l.appendChild(p);return}
+    timers.forEach(function(t,i){
+      var d=document.createElement('div');d.className='item';
+      var s=document.createElement('span');s.textContent=t.label;
+      var c=document.createElement('span');c.className='count';c.style.flex='none';c.dataset.i=i;
+      c.textContent=fmt(Math.max(0,Math.round((t.end-Date.now())/1000)));
+      var b=document.createElement('button');b.type='button';b.textContent='Cancelar';
+      b.addEventListener('click',function(){timers.splice(i,1);renderTimers()});
+      d.appendChild(s);d.appendChild(c);d.appendChild(b);l.appendChild(d);
+    });
+  }
+  setInterval(function(){
+    var done=timers.filter(function(t){return t.end<=Date.now()});
+    if(done.length){
+      timers=timers.filter(function(t){return t.end>Date.now()});
+      beep();done.forEach(function(t){reply('Tiempo cumplido: '+t.label+'.')});
+      if(current==='timer')renderTimers();
+      if(current==='home')refreshHome();
+    }else if(current==='timer'){
+      document.querySelectorAll('.count').forEach(function(c){
+        var t=timers[+c.dataset.i];if(t)c.textContent=fmt(Math.max(0,Math.round((t.end-Date.now())/1000)));
+      });
+    }
+  },1000);
+  [[60,'1 min'],[300,'5 min'],[600,'10 min'],[900,'15 min'],[1800,'30 min'],[3600,'1 hora']].forEach(function(p){
+    var b=document.createElement('button');b.type='button';b.textContent=p[1];
+    b.addEventListener('click',function(){addTimer(p[0],p[1])});$('presets').appendChild(b);
+  });
+
+  /* Apps */
+  var SITES={youtube:'https://www.youtube.com',whatsapp:'https://wa.me',tiktok:'https://www.tiktok.com',
+    instagram:'https://www.instagram.com',facebook:'https://www.facebook.com',spotify:'https://open.spotify.com',
+    google:'https://www.google.com',maps:'https://maps.google.com',mapas:'https://maps.google.com',
+    netflix:'https://www.netflix.com',gmail:'https://mail.google.com',discord:'https://discord.com/app',
+    twitter:'https://x.com',x:'https://x.com',telegram:'https://web.telegram.org'};
+  [['YouTube','youtube'],['WhatsApp','whatsapp'],['TikTok','tiktok'],['Instagram','instagram'],['Spotify','spotify'],
+   ['Google','google'],['Mapas','maps'],['Gmail','gmail'],['Discord','discord'],['Netflix','netflix']].forEach(function(a){
+    var l=document.createElement('a');l.href=SITES[a[1]];l.target='_blank';l.rel='noopener';l.textContent=a[0];$('appsGrid').appendChild(l);
+  });
+
+  var JOKES=['Qué hace una abeja en el gimnasio? Zumba.','Por qué los pájaros vuelan al sur? Porque caminando tardarían mucho.','Cómo se despiden los químicos? Ácido un placer.'];
+  var HELP='Esto sé hacer:\n• hora, fecha\n• abre youtube / whatsapp / tiktok…\n• busca gatos\n• reproduce una canción\n• ruta a un lugar\n• llama al 5551234567\n• temporizador 5 minutos\n• recuerda comprar pan\n• mis notas / borra notas\n• calcula 12 por 8\n• dado, moneda, chiste, batería';
+  function run(raw){
+    var t=norm(raw),m;if(!t)return;
+    bubble('me',raw);
+    if(/^(ayuda|que sabes hacer|comandos|que puedes hacer)/.test(t))return reply(HELP);
+    if(/^(hola|buenas|hey)/.test(t)&&t.length<20)return reply('Hola, soy Fork. Dime qué necesitas o escribe ayuda.');
+    if(/que hora|la hora|hora es/.test(t))return reply('Son las '+new Date().toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit'})+'.');
+    if(/que dia|fecha|a cuanto estamos/.test(t)){var d=new Date();return reply('Hoy es '+DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()]+' de '+d.getFullYear()+'.')}
+    if((m=t.match(/(?:temporizador|timer|cuenta regresiva|avisame)(?: de| en)? (\d+) ?(segundo|seg|minuto|min|hora)/))){
+      var q=parseInt(m[1],10),u=m[2],s=/^h/.test(u)?q*3600:/^m/.test(u)?q*60:q;
+      addTimer(s,q+' '+m[2]);return reply('Listo, te aviso en '+q+' '+m[2]+'. Deja Fork abierto.');
+    }
+    if((m=t.match(/^(?:recuerda|anota|guarda nota|nota)(?: que)? (.+)/))){
+      var ns=notes();ns.push(raw.replace(/^\S+\s+(que\s+)?/i,''));saveNotes(ns);
+      return reply('Anotado. Tienes '+ns.length+' nota'+(ns.length>1?'s':'')+'.');
+    }
+    if(/(mis notas|ver notas|lee mis notas|que tengo anotado)/.test(t)){var all=notes();return reply(all.length?all.map(function(x,i){return (i+1)+'. '+x}).join('\n'):'No tienes notas todavía.')}
+    if(/(borra|elimina|limpia) (las |mis )?notas/.test(t)){saveNotes([]);return reply('Notas borradas.')}
+    if((m=t.match(/^(?:llama|marca)(?: al| a)? ([\d\s+-]{5,})/))){var num=m[1].replace(/[^\d+]/g,'');return reply('Llamando al '+num+'.',{url:'tel:'+num,label:'Llamar'})}
+    if((m=t.match(/^(?:abre|abrir|ir a|ve a|entra a)(?: la app de| el| la)? (\w+)/))){
+      var site=SITES[m[1]];
+      if(site)return reply('Abriendo '+m[1]+'.',{url:site,label:'Abrir '+m[1]});
+      return reply('No conozco “'+m[1]+'”. Prueba con: '+Object.keys(SITES).join(', ')+'.');
+    }
+    if((m=t.match(/^(?:reproduce|pon|ponme|escuchar|quiero escuchar)(?: la cancion| musica de| musica)? (.+)/)))
+      return reply('Buscando '+m[1]+' en YouTube.',{url:'https://www.youtube.com/results?search_query='+encodeURIComponent(m[1]),label:'Ver en YouTube'});
+    if((m=t.match(/^(?:ruta a|como llego a|navega a|llevame a|donde queda)(?: la| el)? (.+)/)))
+      return reply('Buscando '+m[1]+' en el mapa.',{url:'https://www.google.com/maps/search/'+encodeURIComponent(m[1]),label:'Abrir mapa'});
+    if((m=t.match(/^(?:busca|buscar|googlea|investiga)(?: en google)?(?: sobre)? (.+)/)))
+      return reply('Buscando '+m[1]+'.',{url:'https://www.google.com/search?q='+encodeURIComponent(m[1]),label:'Ver resultados'});
+    if(/\d/.test(t)&&/^(?:calcula |cuanto es |cuanto da )?[\d\s+\-*/x().,]*\d[\d\s+\-*/x().,]*$|^(?:calcula |cuanto es |cuanto da )?\d+(?:\s+(?:mas|menos|por|entre|dividido(?: entre)?)\s+\d+)+$/.test(t)){
+      var ex=t.replace(/^(calcula|cuanto es|cuanto da) /,'').replace(/\bmas\b/g,'+').replace(/\bmenos\b/g,'-').replace(/\bpor\b|x/g,'*').replace(/\bdividido entre\b|\bentre\b|\bdividido\b/g,'/').replace(/,/g,'.');
+      if(/^[\d\s+\-*/().]+$/.test(ex)){try{var r=Function('"use strict";return ('+ex+')')();if(isFinite(r))return reply('Da '+(Math.round(r*1e6)/1e6)+'.')}catch(e){}}
+      return reply('No pude hacer esa cuenta.');
+    }
+    if(/dado/.test(t))return reply('Salió el '+(1+Math.floor(Math.random()*6))+'.');
+    if(/moneda|cara o cruz/.test(t))return reply(Math.random()<.5?'Cara.':'Cruz.');
+    if(/chiste/.test(t))return reply(JOKES[Math.floor(Math.random()*JOKES.length)]);
+    if(/bateria/.test(t)&&navigator.getBattery){navigator.getBattery().then(function(b){reply('Tu batería está al '+Math.round(b.level*100)+'%'+(b.charging?' y cargando.':'.'))});return}
+    if(/gracias/.test(t))return reply('Para eso estoy.');
+    reply('No entendí eso. Escribe ayuda para ver lo que sé hacer.');
+  }
+  form.addEventListener('submit',function(e){e.preventDefault();var v=input.value;input.value='';input.style.height='auto';run(v)});
+  input.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
+  input.addEventListener('input',function(){input.style.height='auto';input.style.height=Math.min(input.scrollHeight,120)+'px'});
+  function welcome(){bubble('ai','Soy Fork. Escríbeme o toca el micrófono. Si no sabes qué decir, escribe ayuda.')}
+  $('clear').addEventListener('click',function(){chat.innerHTML='';welcome()});
+  welcome();
+
+  document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a&&window.ForkNative&&a.href){e.preventDefault();ForkNative.open(a.href)}});
+  window.onNativeSpeech=function(t){show('chat');run(t)};
+  window.onNativeState=function(v){on=v;$('mic').classList.toggle('on',v)};
+  window.onNativeError=function(m){show('chat');reply(m)};
+
+  refreshHome();
+})();
+</script>
+</body>
+</html>
