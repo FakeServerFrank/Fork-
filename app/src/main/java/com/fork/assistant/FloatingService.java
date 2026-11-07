@@ -191,6 +191,11 @@ public class FloatingService extends Service {
         bubbleLp.y = (int) (dm.heightPixels * 0.4f);
 
         bubble.setOnTouchListener(new View.OnTouchListener() {
+                        private int startX, startY;
+            private float touchX, touchY;
+            private boolean moved;
+
+            public boolean onTouch(View v, MotionEvent e) {
             float dx, dy;
                 switch (e.getAction()) {
                     case MotionEvent.ACTION_DOWN:
