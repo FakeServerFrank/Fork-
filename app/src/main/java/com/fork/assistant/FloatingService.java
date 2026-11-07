@@ -158,4 +158,186 @@ public class FloatingService extends Service {
         panelRoot.addView(panel, new FrameLayout.LayoutParams(w, h));
         panelRoot.setVisibility(View.GONE);
 
-        panelLp = new WindowMan
+        panelLp = new WindowManager.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                overlayType(),
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                        | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                PixelFormat.TRANSLUCENT);
+        panelLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        panelLp.y = dp(28);
+        panelLp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN;
+        wm.addView(panelRoot, panelLp);
+    }
+        private void buildBubble() {
+        final int size = dp(56);
+        bubble = new TextView(this);
+        bubble.setText("F");
+        bubble.setTextSize(24);
+        bubble.setTextColor(0xFFFFFFFF);
+        bubble.setGravity(Gravity.CENTER);
+        GradientDrawable oval = new GradientDrawable();
+        oval.setShape(GradientDrawable.OVAL);
+        oval.setColor(0xFF3B3FD8);
+        oval.setStroke(dp(2), 0xFFFFFFFF);
+        bubble.setBackground(oval);
+
+        bubbleLp = new WindowManager.LayoutParams(size, size, overlayType(),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT);
+        bubbleLp.gravity = Gravity.TOP | Gravity.START;
+        bubbleLp.x = dm.widthPixels - size - dp(8);
+        bubbleLp.y = (int) (dm.heightPixels * 0.4f);
+
+        bubble.setOnTouchListener(new View.OnTouchListener() {
+            float dx, dy;
+                switch (e.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startX = bubbleLp.x;
+                        startY = bubbleLp.y;
+                        touchX = e.getRawX();
+                        touchY = e.getRawY();
+                        moved = false;
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        dx = e.getRawX() - touchX;
+                        dy = e.getRawY() - touchY;
+                        if (Math.abs(dx) > dp(6) || Math.abs(dy) > dp(6)) moved = true;
+                        if (moved) {
+                            bubbleLp.x = startX + (int) dx;
+                            bubbleLp.y = startY + (int) dy;
+                            wm.updateViewLayout(bubble, bubbleLp);
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        if (!moved) {
+                            togglePanel();
+                        } else {
+                            bubbleLp.x = (bubbleLp.x + size / 2 < dm.widthPixels / 2)
+                                    ? dp(8) : dm.widthPixels - size - dp(8);
+                            wm.updateViewLayout(bubble, bubbleLp);
+                        }
+                        return true;
+                }
+                return false;
+            }
+        });
+        wm.addView(bubble, bubbleLp);
+    }
+
+    private void togglePanel() {
+        if (panelOpen) hidePanel(); else showPanel();
+    }
+
+    private void showPanel() {
+        panelOpen = true;
+        panelLp.flags &= ~(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+        panelRoot.setVisibility(View.VISIBLE);
+        wm.updateViewLayout(panelRoot, panelLp);
+        web.requestFocus();
+    }
+
+    private void hidePanel() {
+        panelOpen = false;
+        panelLp.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
+        panelRoot.setVisibility(View.GONE);
+        wm.updateViewLayout(panelRoot, panelLp);
+        web.resumeTimers();
+    }
+
+    private void openUrl(String url) {
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+            hidePanel();
+        } catch (ActivityNotFoundException e) {
+            js("window.onNativeError('No encontré una app para abrir eso.')");
+        }
+    }
+
+    private void js(String code) {
+        if (web != null) web.evaluateJavascript(code, null);
+    }
+
+    private void startListening() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            js("window.onNativeError('Falta el permiso del micrófono. Abre la app Fork y acéptalo.')");
+            return;
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            js("window.onNativeError('Este teléfono no tiene reconocimiento de voz disponible.')");
+            return;
+        }
+        if (sr == null) {
+            sr = SpeechRecognizer.createSpeechRecognizer(this);
+            sr.setRecognitionListener(new RecognitionListener() {
+                public void onReadyForSpeech(Bundle p) { js("window.onNativeState(true)"); }
+                public void onBeginningOfSpeech() {}
+                public void onRmsChanged(float v) {}
+                public void onBufferReceived(byte[] b) {}
+                public void onEndOfSpeech() { js("window.onNativeState(false)"); }
+                public void onError(int code) {
+                    js("window.onNativeState(false)");
+                    if (code != SpeechRecognizer.ERROR_NO_MATCH && code != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                        js("window.onNativeError('No pude escuchar (código " + code + ").')");
+                    }
+                }
+                public void onResults(Bundle r) {
+                    js("window.onNativeState(false)");
+                    ArrayList<String> list = r.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                    if (list != null && !list.isEmpty()) {
+                        js("window.onNativeSpeech(" + JSONObject.quote(list.get(0)) + ")");
+                    }
+                }
+                public void onPartialResults(Bundle b) {}
+                public void onEvent(int t, Bundle b) {}
+            });
+        }
+        Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-MX");
+        sr.startListening(i);
+    }
+
+    private class Bridge {
+        @JavascriptInterface
+        public void speak(final String t) {
+            main.post(new Runnable() {
+                public void run() {
+                    if (tts != null) tts.speak(t, TextToSpeech.QUEUE_FLUSH, null, "fork");
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void listen() {
+            main.post(new Runnable() { public void run() { startListening(); } });
+        }
+
+        @JavascriptInterface
+        public void stop() {
+            main.post(new Runnable() {
+                public void run() { if (sr != null) sr.stopListening(); }
+            });
+        }
+
+        @JavascriptInterface
+        public void open(final String url) {
+            main.post(new Runnable() { public void run() { openUrl(url); } });
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        try { wm.removeView(bubble); } catch (Exception e) {}
+        try { wm.removeView(panelRoot); } catch (Exception e) {}
+        if (web != null) web.destroy();
+        if (sr != null) sr.destroy();
+        if (tts != null) { tts.stop(); tts.shutdown(); }
+        super.onDestroy();
+    }
+}
