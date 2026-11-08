@@ -168,7 +168,7 @@ public class FloatingService extends Service {
         panelLp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN;
         wm.addView(panelRoot, panelLp);
             }
-    }
+  
     private void buildBubble() {
         final int size = dp(56);
         bubble = new TextView(this);
