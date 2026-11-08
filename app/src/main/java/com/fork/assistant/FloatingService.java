@@ -105,7 +105,9 @@ public class FloatingService extends Service {
         t.setPadding(dp(12), dp(8), dp(12), dp(8));
         t.setOnClickListener(l);
         return t;
-            private void buildPanel() {
+    }
+
+    private void buildPanel() {
         int w = (int) (dm.widthPixels * 0.94f);
         int h = (int) (dm.heightPixels * 0.55f);
 
@@ -167,9 +169,8 @@ public class FloatingService extends Service {
         panelLp.y = dp(28);
         panelLp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN;
         wm.addView(panelRoot, panelLp);
-            }
-  
-    private void buildBubble() {
+    }
+       private void buildBubble() {
         final int size = dp(56);
         bubble = new TextView(this);
         bubble.setText("F");
@@ -229,6 +230,7 @@ public class FloatingService extends Service {
         });
         wm.addView(bubble, bubbleLp);
     }
+
     private void togglePanel() {
         if (panelOpen) hidePanel(); else showPanel();
     }
@@ -274,12 +276,7 @@ public class FloatingService extends Service {
             js("window.onNativeError('No pude abrir esa app.')");
             return;
         }
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(i);
-        hidePanel();
-    }
-
-    private void startListening() {
+            private void startListening() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             js("window.onNativeError('Falta el permiso del micrófono. Abre la app Fork y acéptalo.')");
             return;
@@ -318,6 +315,7 @@ public class FloatingService extends Service {
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-MX");
         sr.startListening(i);
     }
+
     private class Bridge {
         @JavascriptInterface
         public String apps() {
@@ -382,3 +380,8 @@ public class FloatingService extends Service {
         super.onDestroy();
     }
 }
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
+        hidePanel();
+                             }
+    
