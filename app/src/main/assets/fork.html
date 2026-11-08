@@ -66,6 +66,8 @@ textarea,.field{flex:1;resize:none;max-height:120px;border:1px solid var(--line)
 .apps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .apps a{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--ink);text-decoration:none;font-size:17px}
 h3{font-size:16px;font-weight:normal;color:var(--steel);margin:6px 0 10px}
+
+.item .open{flex:1;text-align:left;color:var(--ink);font-size:17px;padding:6px 0}
 </style>
 </head>
 <body>
@@ -152,11 +154,21 @@ h3{font-size:16px;font-weight:normal;color:var(--steel);margin:6px 0 10px}
 
 <!-- APPS -->
 <section class="view" id="v-apps">
-  <div class="panel"><div class="apps" id="appsGrid"></div></div>
+  <div class="panel">
+    <button class="say" id="appAdd" type="button" style="margin-top:0;margin-bottom:14px">+ Agregar app</button>
+    <div class="list" id="appsGrid"></div>
+  </div>
+</section>
+
+<!-- ELEGIR APP -->
+<section class="view" id="v-pick">
+  <div class="panel">
+    <div class="row"><input class="field" id="pickQ" type="text" placeholder="Buscar app"></div>
+    <div class="list" id="pickList"></div>
+  </div>
 </section>
 
 </div>
-
 <script>
 (function(){
   var $=function(id){return document.getElementById(id)};
@@ -166,20 +178,23 @@ h3{font-size:16px;font-weight:normal;color:var(--steel);margin:6px 0 10px}
   var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 
   /* ---------- Navegación ---------- */
-  var TITLES={chat:'Comandos',notes:'Notas',timer:'Temporizador',apps:'Apps'};
+  var TITLES={chat:'Comandos',notes:'Notas',timer:'Temporizador',apps:'Apps',pick:'Elegir app'};
   var current='home';
   function show(name){
     current=name;
-    ['home','chat','notes','timer','apps'].forEach(function(v){$('v-'+v).classList.toggle('on',v===name)});
+    ['home','chat','notes','timer','apps','pick'].forEach(function(v){$('v-'+v).classList.toggle('on',v===name)});
     $('bar').classList.toggle('on',name!=='home');
     $('title').textContent=TITLES[name]||'';
     $('clear').hidden=name!=='chat';
     if(name==='notes')renderNotes();
     if(name==='timer')renderTimers();
+    if(name==='apps')renderApps();
+    if(name==='pick')renderPick();
+    $('back').textContent=name==='pick'?'Atrás':'Inicio';
     if(name==='home')refreshHome();
     if(name==='chat')setTimeout(function(){$('chat').scrollTop=$('chat').scrollHeight},0);
   }
-  $('back').addEventListener('click',function(){show('home')});
+  $('back').addEventListener('click',function(){show(current==='pick'?'apps':'home')});
   document.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.go)})});
 
   /* ---------- Inicio ---------- */
@@ -299,13 +314,54 @@ h3{font-size:16px;font-weight:normal;color:var(--steel);margin:6px 0 10px}
     google:'https://www.google.com',maps:'https://maps.google.com',mapas:'https://maps.google.com',
     netflix:'https://www.netflix.com',gmail:'https://mail.google.com',discord:'https://discord.com/app',
     twitter:'https://x.com',x:'https://x.com',telegram:'https://web.telegram.org'};
-  [['YouTube','youtube'],['WhatsApp','whatsapp'],['TikTok','tiktok'],['Instagram','instagram'],['Spotify','spotify'],
-   ['Google','google'],['Mapas','maps'],['Gmail','gmail'],['Discord','discord'],['Netflix','netflix']].forEach(function(a){
-    var l=document.createElement('a');l.href=SITES[a[1]];l.target='_blank';l.rel='noopener';l.textContent=a[0];$('appsGrid').appendChild(l);
-  });
+  function myApps(){try{return JSON.parse(st('fork_apps')||'[]')}catch(e){return[]}}
+  function saveApps(a){st('fork_apps',JSON.stringify(a))}
+  function installed(){
+    if(!window.ForkNative)return[];
+    try{return JSON.parse(ForkNative.apps()).sort(function(a,b){return a.name.localeCompare(b.name,'es')})}catch(e){return[]}
+  }
+  function openApp(a){if(window.ForkNative)ForkNative.launch(a.pkg)}
+  function findApp(w){
+    w=norm(w);var all=installed();
+    return all.filter(function(a){return norm(a.name)===w})[0]||all.filter(function(a){return norm(a.name).indexOf(w)>-1})[0]||null;
+  }
+  function hint(el,txt){var p=document.createElement('p');p.className='hint';p.textContent=txt;el.appendChild(p)}
+  function renderApps(){
+    var g=$('appsGrid');g.innerHTML='';
+    var list=myApps();
+    if(!list.length){hint(g,'Aquí aparecen las apps que tú elijas. Toca Agregar app.');return}
+    list.forEach(function(a,i){
+      var d=document.createElement('div');d.className='item';
+      var o=document.createElement('button');o.type='button';o.className='open';o.textContent=a.name;
+      o.addEventListener('click',function(){openApp(a)});
+      var x=document.createElement('button');x.type='button';x.textContent='Quitar';
+      x.addEventListener('click',function(){var l=myApps();l.splice(i,1);saveApps(l);renderApps()});
+      d.appendChild(o);d.appendChild(x);g.appendChild(d);
+    });
+  }
+  var pickAll=[];
+  function renderPick(){
+    var l=$('pickList');l.innerHTML='';
+    if(!window.ForkNative){hint(l,'Esta lista solo aparece dentro de la app Fork con burbuja.');return}
+    if(!pickAll.length)pickAll=installed();
+    var q=norm($('pickQ').value||''),have=myApps().map(function(a){return a.pkg});
+    pickAll.filter(function(a){return !q||norm(a.name).indexOf(q)>-1}).forEach(function(a){
+      var d=document.createElement('div');d.className='item';
+      var o=document.createElement('button');o.type='button';o.className='open';
+      o.textContent=a.name+(have.indexOf(a.pkg)>-1?'  ✓':'');
+      o.addEventListener('click',function(){
+        var m=myApps();
+        if(!m.some(function(z){return z.pkg===a.pkg})){m.push(a);saveApps(m)}
+        show('apps');
+      });
+      d.appendChild(o);l.appendChild(d);
+    });
+  }
+  $('appAdd').addEventListener('click',function(){pickAll=[];$('pickQ').value='';show('pick')});
+  $('pickQ').addEventListener('input',renderPick);
 
   var JOKES=['Qué hace una abeja en el gimnasio? Zumba.','Por qué los pájaros vuelan al sur? Porque caminando tardarían mucho.','Cómo se despiden los químicos? Ácido un placer.'];
-  var HELP='Esto sé hacer:\n• hora, fecha\n• abre youtube / whatsapp / tiktok…\n• busca gatos\n• reproduce una canción\n• ruta a un lugar\n• llama al 5551234567\n• temporizador 5 minutos\n• recuerda comprar pan\n• mis notas / borra notas\n• calcula 12 por 8\n• dado, moneda, chiste, batería';
+  var HELP='Esto sé hacer:\n• hora, fecha\n• abre tiktok (cualquier app instalada)\n• busca gatos\n• reproduce una canción\n• ruta a un lugar\n• llama al 5551234567\n• temporizador 5 minutos\n• recuerda comprar pan\n• mis notas / borra notas\n• calcula 12 por 8\n• dado, moneda, chiste, batería';
   function run(raw){
     var t=norm(raw),m;if(!t)return;
     bubble('me',raw);
@@ -324,6 +380,7 @@ h3{font-size:16px;font-weight:normal;color:var(--steel);margin:6px 0 10px}
     if(/(mis notas|ver notas|lee mis notas|que tengo anotado)/.test(t)){var all=notes();return reply(all.length?all.map(function(x,i){return (i+1)+'. '+x}).join('\n'):'No tienes notas todavía.')}
     if(/(borra|elimina|limpia) (las |mis )?notas/.test(t)){saveNotes([]);return reply('Notas borradas.')}
     if((m=t.match(/^(?:llama|marca)(?: al| a)? ([\d\s+-]{5,})/))){var num=m[1].replace(/[^\d+]/g,'');return reply('Llamando al '+num+'.',{url:'tel:'+num,label:'Llamar'})}
+    if((m=t.match(/^(?:abre|abrir|ir a|ve a|entra a)(?: la app de| la app| el| la)? (.+)/))&&findApp(m[1])){var ap=findApp(m[1]);openApp(ap);return reply('Abriendo '+ap.name+'.')}
     if((m=t.match(/^(?:abre|abrir|ir a|ve a|entra a)(?: la app de| el| la)? (\w+)/))){
       var site=SITES[m[1]];
       if(site)return reply('Abriendo '+m[1]+'.',{url:site,label:'Abrir '+m[1]});
